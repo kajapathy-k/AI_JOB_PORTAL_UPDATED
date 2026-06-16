@@ -1,0 +1,257 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* Brand — electric blue/cyan core of the futuristic palette. */
+  --color-brand-50: #ecfeff;
+  --color-brand-100: #cffafe;
+  --color-brand-200: #a5f3fc;
+  --color-brand-300: #67e8f9;
+  --color-brand-400: #22d3ee;
+  --color-brand-500: #06b6d4;
+  --color-brand-600: #0891b2;
+  --color-brand-700: #0e7490;
+  --color-brand-800: #155e75;
+
+  /* Neon accents used for glows + gradients. */
+  --color-neon-cyan: #22d3ee;
+  --color-neon-blue: #3b82f6;
+  --color-neon-violet: #8b5cf6;
+  --color-neon-pink: #e879f9;
+
+  /* Deep-space surfaces. */
+  --color-space-900: #05060f;
+  --color-space-800: #0a0e1f;
+  --color-space-700: #111733;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Deep-space backdrop: layered aurora glows + a faint grid mesh that drifts. */
+body {
+  @apply text-slate-300 antialiased;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  color-scheme: dark;
+  background-color: #05060f;
+  background-image:
+    radial-gradient(
+      40rem 40rem at 80% -10%,
+      rgba(34, 211, 238, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      45rem 45rem at 0% 10%,
+      rgba(139, 92, 246, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      50rem 50rem at 50% 120%,
+      rgba(59, 130, 246, 0.16),
+      transparent 55%
+    ),
+    linear-gradient(180deg, #05060f 0%, #070a18 100%);
+  background-attachment: fixed;
+}
+
+/* Grid mesh overlay sitting behind all content. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at 50% 30%, black, transparent 80%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes float-glow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+    opacity: 1;
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(34, 211, 238, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  }
+}
+
+@layer components {
+  /* Futuristic display heading + animated gradient text. */
+  .heading {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  .gradient-text {
+    background-image: linear-gradient(
+      100deg,
+      #67e8f9,
+      #60a5fa,
+      #c084fc,
+      #67e8f9
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 6s linear infinite;
+  }
+
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.6rem 1.2rem;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    cursor: pointer;
+  }
+  .btn:disabled,
+  .btn-primary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  /* Neon gradient button with an outer glow that intensifies on hover. */
+  .btn-primary {
+    @apply text-white;
+    background-image: linear-gradient(
+      120deg,
+      #22d3ee 0%,
+      #3b82f6 50%,
+      #8b5cf6 100%
+    );
+    background-size: 180% auto;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+      0 8px 24px -6px rgba(56, 189, 248, 0.5);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-position: right center;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+      0 10px 32px -4px rgba(99, 102, 241, 0.7);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    @apply text-slate-200;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgba(34, 211, 238, 0.1);
+    border-color: rgba(34, 211, 238, 0.5);
+    color: #a5f3fc;
+  }
+  .btn-danger {
+    @apply text-white;
+    background-image: linear-gradient(120deg, #fb7185 0%, #e11d48 100%);
+    box-shadow: 0 8px 24px -6px rgba(244, 63, 94, 0.5);
+  }
+  .btn-danger:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .input {
+    @apply w-full rounded-xl px-3.5 py-2.5 text-sm text-slate-100 transition
+           placeholder:text-slate-500;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .input:focus {
+    outline: none;
+    border-color: rgba(34, 211, 238, 0.6);
+    box-shadow:
+      0 0 0 4px rgba(34, 211, 238, 0.12),
+      0 0 24px -8px rgba(34, 211, 238, 0.6);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  select.input option {
+    background: #0a0e1f;
+    color: #e2e8f0;
+  }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5;
+  }
+
+  /* Glassmorphic panel with a soft gradient hairline border + depth shadow. */
+  .card {
+    position: relative;
+    border-radius: 1.25rem;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.02)
+    );
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(18px);
+    box-shadow:
+      0 24px 60px -24px rgba(0, 0, 0, 0.8),
+      0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
+  }
+  /* Subtle top edge highlight, like light catching glass. */
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      rgba(34, 211, 238, 0.4),
+      transparent 35%,
+      transparent 70%,
+      rgba(139, 92, 246, 0.35)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
