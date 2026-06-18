@@ -25,6 +25,6 @@ tags = {
 #   $env:TF_VAR_groq_api_key = "gsk_..."
 groq_api_key = "replace-me"
 
-frontend_docker_image = "kajapathy/ai-job-portal-frontend:latest"
-backend_docker_image  = "kajapathy/ai-job-portal-backend:latest"
+frontend_docker_image = "kajapathy/ai-job-portal-frontend:v2"
+backend_docker_image  = "kajapathy/ai-job-portal-backend:v2"
 run_seed_data         = false

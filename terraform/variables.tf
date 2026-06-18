@@ -196,13 +196,13 @@ variable "ec2_key_name" {
 variable "frontend_docker_image" {
   description = "Frontend Docker image to deploy on EC2."
   type        = string
-  default     = "kajapathy/ai-job-portal-frontend:latest"
+  default     = "kajapathy/ai-job-portal-frontend:v2"
 }
 
 variable "backend_docker_image" {
   description = "Backend Docker image to deploy on EC2."
   type        = string
-  default     = "kajapathy/ai-job-portal-backend:latest"
+  default     = "kajapathy/ai-job-portal-backend:v2"
 }
 
 variable "run_seed_data" {
