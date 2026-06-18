@@ -21,7 +21,7 @@ review ranked applicants.
                                screening :9003  ── LangGraph: extract → fit → score
 ```
 
-Each service is its own FastAPI app with its own SQLite DB; they share JWTs
+Each service is its own FastAPI app with its own PostgreSQL database; they share JWTs
 signed with one secret, so a token from auth-service validates everywhere.
 
 ## The flow
@@ -88,7 +88,7 @@ backend/
   gateway.py              # :8000 — CORS + reverse proxy to the services
   common/                 # shared library imported by every service
     config.py             #   env, JWT settings, service URLs, screening threshold
-    db.py                 #   SQLAlchemy Base + per-service SQLite helpers
+    db.py                 #   SQLAlchemy Base + per-service database helpers
     security.py           #   JWT mint/verify + bcrypt; get_current_user / require_recruiter
     groq_clients.py       #   Whisper STT, Llama chat, Orpheus TTS wrappers
   services/
@@ -112,10 +112,11 @@ frontend/
 - **Ports:** services run on `9001–9004` and the gateway on `8000` to avoid
   colliding with other local stacks that grab `80xx`. Override any URL via
   `.env`.
+- **Databases:** set `AUTH_DATABASE_URL` and `JOBS_DATABASE_URL` for Amazon RDS,
+  or provide shared `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` plus
+  `AUTH_DB_NAME` and `JOBS_DB_NAME`.
 - **State is in-memory** for interviews (`MemorySaver`); restarting interview-service
   loses in-progress interviews. Swap in the Postgres checkpointer for production.
-- **Each service owns its DB** under `backend/data/*.db` (gitignored). Delete a
-  file to reset that service; re-run `seed.py` to repopulate.
 - **Mic access needs a secure context** — `localhost` counts, so dev works; a LAN
   IP needs HTTPS.
 - **Model IDs** for Groq STT/LLM/TTS are at the top of `common/groq_clients.py`;

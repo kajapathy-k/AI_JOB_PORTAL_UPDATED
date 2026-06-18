@@ -8,8 +8,9 @@ pydantic[email]           # EmailStr validation in auth-service
 python-jose[cryptography] # JWT mint/verify
 bcrypt                    # password hashing (used directly; see common/security.py)
 
-# Persistence (per-service SQLite)
+# Persistence
 SQLAlchemy
+psycopg[binary]
 
 # AI / orchestration
 groq                      # STT (Whisper) + LLM (Llama) + TTS (Orpheus)

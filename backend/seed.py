@@ -12,7 +12,7 @@ from common.config import db_path
 from common.db import init_db, make_session
 from common.security import hash_password
 from services.auth.models import User
-from services.jobs.models import Job
+from services.jobs.models import Application, Job
 
 RECRUITER = {"email": "recruiter@demo.com", "full_name": "Dana Recruiter",
              "password": "password123", "role": "recruiter"}
@@ -92,8 +92,8 @@ def get_or_create_user(SessionLocal, spec) -> User:
 
 def main():
     auth_url, jobs_url = db_path("auth"), db_path("jobs")
-    init_db(auth_url)
-    init_db(jobs_url)
+    init_db(auth_url, tables=[User.__table__])
+    init_db(jobs_url, tables=[Job.__table__, Application.__table__])
 
     AuthSession = make_session(auth_url)
     JobsSession = make_session(jobs_url)

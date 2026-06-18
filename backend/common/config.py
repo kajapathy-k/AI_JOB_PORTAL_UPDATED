@@ -6,6 +6,7 @@ the other services.
 """
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
@@ -36,11 +37,34 @@ FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
 # never reach the voice interview. Tune per how strict the funnel should be.
 SCREEN_PASS_THRESHOLD = int(os.environ.get("SCREEN_PASS_THRESHOLD", "60"))
 
-# Each service keeps its own SQLite file under backend/data/.
-DATA_DIR = _BACKEND_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = os.environ.get("DB_PORT", "5432")
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "postgres")
+DB_SSLMODE = os.environ.get("DB_SSLMODE", "prefer")
+
+
+def _postgres_url(db_name: str) -> str:
+    user = quote_plus(DB_USER)
+    password = quote_plus(DB_PASSWORD)
+    return (
+        f"postgresql+psycopg://{user}:{password}@{DB_HOST}:{DB_PORT}/{db_name}"
+        f"?sslmode={DB_SSLMODE}"
+    )
 
 
 def db_path(name: str) -> str:
-    """SQLAlchemy URL for a service-owned SQLite file, e.g. db_path('auth')."""
-    return f"sqlite:///{DATA_DIR / (name + '.db')}"
+    """SQLAlchemy URL for a service-owned database.
+
+    Resolution order:
+      1. <SERVICE>_DATABASE_URL, e.g. AUTH_DATABASE_URL
+      2. DATABASE_URL (shared, if both services intentionally use one DB)
+      3. Shared Postgres connection settings + <SERVICE>_DB_NAME
+    """
+    service = name.upper()
+    explicit = os.environ.get(f"{service}_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if explicit:
+        return explicit
+
+    db_name = os.environ.get(f"{service}_DB_NAME", f"hirevoice_{name}")
+    return _postgres_url(db_name)

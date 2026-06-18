@@ -23,7 +23,7 @@ class Job(Base):
     requirements = Column(Text, default="")
     salary_min = Column(Integer, nullable=True)
     salary_max = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=_now)
+    created_at = Column(DateTime(timezone=True), default=_now)
 
 
 class Application(Base):
@@ -57,5 +57,5 @@ class Application(Base):
     interview_summary = Column(Text, default="")
     interview_assessment = Column(Text, default="{}")  # JSON-encoded dict
 
-    created_at = Column(DateTime, default=_now)
-    updated_at = Column(DateTime, default=_now, onupdate=_now)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)

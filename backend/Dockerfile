@@ -10,9 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# SQLite files live here; mount a volume to persist across restarts
-RUN mkdir -p /app/data
-
 ENV PYTHONPATH=/app
 
 COPY supervisord.conf /etc/supervisor/conf.d/backend.conf

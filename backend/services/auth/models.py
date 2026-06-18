@@ -13,4 +13,4 @@ class User(Base):
     full_name = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="candidate")  # candidate | recruiter
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
