@@ -18,6 +18,12 @@ $env:PYTHONPATH = $PSScriptRoot
 $py = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { $py = "python" }
 
+Write-Host "Bootstrapping PostgreSQL databases..."
+& $py -m common.db_bootstrap
+if ($LASTEXITCODE -ne 0) {
+    throw "Database bootstrap failed with exit code $LASTEXITCODE"
+}
+
 $services = @(
     @{ Name = "auth-service";      Module = "services.auth.main:app";      Port = 9001 },
     @{ Name = "jobs-service";      Module = "services.jobs.main:app";      Port = 9002 },

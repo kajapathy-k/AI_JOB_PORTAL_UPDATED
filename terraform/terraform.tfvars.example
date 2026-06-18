@@ -1,0 +1,30 @@
+aws_region  = "us-east-1"
+environment = "dev"
+
+# Use false for higher availability with one NAT Gateway per AZ.
+single_nat_gateway = true
+
+# Restrict this to trusted IP ranges before exposing an EC2-hosted application.
+allowed_web_cidrs = ["0.0.0.0/0"]
+
+postgres_instance_class       = "db.t4g.micro"
+postgres_allocated_storage    = 20
+postgres_max_allocated_storage = 100
+postgres_multi_az             = false
+postgres_deletion_protection  = true
+
+# Set this later to pre-tag subnets for EKS discovery without creating EKS.
+# eks_cluster_name = "hirevoice-dev"
+
+tags = {
+  Owner = "platform"
+}
+
+# Required for Phase 2 EC2 backend deployment. Prefer supplying this as an
+# environment variable rather than committing it to a tfvars file:
+#   $env:TF_VAR_groq_api_key = "gsk_..."
+groq_api_key = "replace-me"
+
+frontend_docker_image = "kajapathy/ai-job-portal-frontend:latest"
+backend_docker_image  = "kajapathy/ai-job-portal-backend:latest"
+run_seed_data         = false

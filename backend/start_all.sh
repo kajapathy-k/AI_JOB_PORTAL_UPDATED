@@ -13,6 +13,9 @@ export PYTHONPATH="$PWD"             # so `from common...` and `services...` res
 PY=".venv/bin/python"
 if [ ! -x "$PY" ]; then PY="python3"; fi
 
+echo "Bootstrapping PostgreSQL databases..."
+"$PY" -m common.db_bootstrap
+
 pids=()
 cleanup() { echo; echo "Stopping services..."; kill "${pids[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
