@@ -132,3 +132,33 @@ output "aws_load_balancer_controller_helm_release" {
   description = "AWS Load Balancer Controller Helm release name."
   value       = module.aws_load_balancer_controller.helm_release_name
 }
+
+output "route53_zone_id" {
+  description = "Route53 hosted zone ID for the HireVoice root domain."
+  value       = aws_route53_zone.primary.zone_id
+}
+
+output "route53_zone_name_servers" {
+  description = "Route53 authoritative nameservers to configure at the domain registrar."
+  value       = aws_route53_zone.primary.name_servers
+}
+
+output "hirevoice_domain_name" {
+  description = "Custom domain name for the HireVoice application."
+  value       = local.hirevoice_fqdn
+}
+
+output "hirevoice_acm_certificate_arn" {
+  description = "ACM certificate ARN for the HireVoice custom domain."
+  value       = aws_acm_certificate.hirevoice.arn
+}
+
+output "hirevoice_alb_dns_name" {
+  description = "Existing ALB DNS name used by the HireVoice Route53 alias record."
+  value       = data.aws_lb.hirevoice_ingress.dns_name
+}
+
+output "hirevoice_route53_alias_fqdn" {
+  description = "Route53 alias record FQDN for HireVoice."
+  value       = aws_route53_record.hirevoice_alias.fqdn
+}

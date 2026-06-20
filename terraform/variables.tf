@@ -247,6 +247,24 @@ variable "eks_cluster_name" {
   default     = null
 }
 
+variable "domain_name" {
+  description = "Root domain name delegated to Route53 for HireVoice."
+  type        = string
+  default     = "in-sur.site"
+}
+
+variable "hirevoice_subdomain" {
+  description = "Subdomain used for the HireVoice application."
+  type        = string
+  default     = "hirevoice"
+}
+
+variable "hirevoice_alb_name" {
+  description = "Existing AWS Load Balancer Controller ALB name for the HireVoice Ingress."
+  type        = string
+  default     = "k8s-hirevoic-hirevoic-36e944838f"
+}
+
 variable "tags" {
   description = "Additional tags applied to all supported resources."
   type        = map(string)
