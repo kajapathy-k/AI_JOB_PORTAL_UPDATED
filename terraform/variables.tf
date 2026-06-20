@@ -211,6 +211,36 @@ variable "run_seed_data" {
   default     = false
 }
 
+variable "eks_cluster_version" {
+  description = "Optional Kubernetes version for the EKS cluster. Null lets AWS use its default supported version."
+  type        = string
+  default     = null
+}
+
+variable "eks_node_instance_types" {
+  description = "EC2 instance types for the EKS managed node group."
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "eks_node_min_size" {
+  description = "Minimum number of EKS managed nodes."
+  type        = number
+  default     = 2
+}
+
+variable "eks_node_desired_size" {
+  description = "Desired number of EKS managed nodes."
+  type        = number
+  default     = 2
+}
+
+variable "eks_node_max_size" {
+  description = "Maximum number of EKS managed nodes."
+  type        = number
+  default     = 4
+}
+
 variable "eks_cluster_name" {
   description = "Optional future EKS cluster name used only for subnet discovery tags. Does not create EKS."
   type        = string

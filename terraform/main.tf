@@ -78,6 +78,78 @@ module "iam" {
   tags = local.common_tags
 }
 
+module "ecr" {
+  source = "./modules/ecr"
+
+  tags = local.common_tags
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  cluster_name        = coalesce(var.eks_cluster_name, "${local.name_prefix}-eks")
+  cluster_version     = var.eks_cluster_version
+  vpc_id              = module.networking.vpc_id
+  public_subnet_ids   = module.networking.public_subnet_ids
+  private_subnet_ids  = module.networking.private_app_subnet_ids
+  node_instance_types = var.eks_node_instance_types
+  node_min_size       = var.eks_node_min_size
+  node_desired_size   = var.eks_node_desired_size
+  node_max_size       = var.eks_node_max_size
+  tags                = local.common_tags
+}
+
+module "external_secrets_irsa" {
+  source = "./modules/irsa"
+
+  name_prefix          = local.name_prefix
+  role_name            = "${local.name_prefix}-external-secrets-irsa"
+  oidc_provider_arn    = module.eks.oidc_provider_arn
+  oidc_provider_url    = module.eks.oidc_provider_url
+  namespace            = "external-secrets"
+  service_account_name = "external-secrets"
+  secret_arns = [
+    module.configuration.jwt_secret_arn,
+    module.configuration.additional_secret_arn_by_name["groq-api-key"],
+    module.rds.master_user_secret_arn
+  ]
+  tags = local.common_tags
+}
+
+module "eks_addons" {
+  source = "./modules/eks_addons"
+
+  aws_region                 = var.aws_region
+  external_secrets_role_arn  = module.external_secrets_irsa.role_arn
+  external_secrets_namespace = "external-secrets"
+  hirevoice_namespace        = "hirevoice"
+  jwt_secret_name            = "hirevoice-dev/jwt-secret"
+  groq_secret_name           = "hirevoice-dev/groq-api-key"
+  rds_secret_name            = module.rds.master_user_secret_arn
+
+  depends_on = [
+    module.eks,
+    module.external_secrets_irsa
+  ]
+}
+
+module "aws_load_balancer_controller" {
+  source = "./modules/aws_load_balancer_controller"
+
+  name_prefix       = local.name_prefix
+  cluster_name      = module.eks.cluster_name
+  aws_region        = var.aws_region
+  vpc_id            = module.networking.vpc_id
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.oidc_provider_url
+  namespace         = "kube-system"
+  tags              = local.common_tags
+
+  depends_on = [
+    module.eks
+  ]
+}
+
 module "backend_ec2" {
   source = "./modules/backend_ec2"
 

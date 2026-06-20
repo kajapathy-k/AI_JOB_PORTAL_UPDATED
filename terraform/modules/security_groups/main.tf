@@ -37,14 +37,6 @@ resource "aws_security_group" "database" {
   description = "HireVoice database security group"
   vpc_id      = var.vpc_id
 
-  ingress {
-    description     = "PostgreSQL from application security group"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.application.id]
-  }
-
   egress {
     description = "Allow outbound traffic"
     from_port   = 0
@@ -56,4 +48,14 @@ resource "aws_security_group" "database" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-db-sg"
   })
+}
+
+resource "aws_security_group_rule" "database_ingress_application" {
+  type                     = "ingress"
+  description              = "PostgreSQL from application security group"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.database.id
+  source_security_group_id = aws_security_group.application.id
 }
