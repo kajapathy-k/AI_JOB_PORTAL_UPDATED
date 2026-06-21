@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - eks-migration
+      - ci-validation
   pull_request:
     branches:
       - main
@@ -37,9 +38,14 @@ jobs:
       severity_threshold: ${{ vars.SNYK_SEVERITY_THRESHOLD || 'critical' }}
     secrets: inherit
 
+  lint-test:
+    name: Lint and Test
+    needs: snyk
+    uses: ./.github/workflows/lint-test.yml
+
   docker-build:
     name: Docker Build
-    needs: snyk
+    needs: lint-test
     uses: ./.github/workflows/docker-build.yml
     with:
       image_tag: ${{ github.sha }}
@@ -92,6 +98,7 @@ jobs:
     needs:
       - sonarqube
       - snyk
+      - lint-test
       - docker-build
       - trivy
       - ecr-push
@@ -105,7 +112,7 @@ jobs:
       - name: Send pipeline notification
         uses: ./.github/actions/send-notification
         with:
-          status: ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'success' || 'failure' }}
+          status: ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.lint-test.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'success' || 'failure' }}
           notification_type: ${{ (needs.sonarqube.result == 'failure' || needs.snyk.result == 'failure' || needs.trivy.result == 'failure') && 'security-gate-failure' || 'general' }}
           smtp_server: ${{ secrets.SMTP_SERVER }}
           smtp_port: ${{ secrets.SMTP_PORT }}
@@ -113,7 +120,7 @@ jobs:
           smtp_password: ${{ secrets.SMTP_PASSWORD }}
           email_to: ${{ vars.NOTIFICATION_EMAIL_TO }}
           email_from: ${{ vars.NOTIFICATION_EMAIL_FROM }}
-          subject: HireVoice CI ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'succeeded' || 'failed' }} - ${{ github.ref_name }} - ${{ github.sha }}
+          subject: HireVoice CI ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.lint-test.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'succeeded' || 'failed' }} - ${{ github.ref_name }} - ${{ github.sha }}
           body: |
             HireVoice CI completed.
 
@@ -125,6 +132,7 @@ jobs:
             Stage results:
             SonarQube: ${{ needs.sonarqube.result }}
             Snyk: ${{ needs.snyk.result }}
+            Lint and Test: ${{ needs.lint-test.result }}
             Docker Build: ${{ needs.docker-build.result }}
             Trivy: ${{ needs.trivy.result }}
             ECR Push: ${{ needs.ecr-push.result }}
