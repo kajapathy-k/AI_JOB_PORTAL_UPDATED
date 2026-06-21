@@ -33,6 +33,7 @@ jobs:
   snyk:
     name: Snyk
     needs: sonarqube
+    if: ${{ always() && (needs.sonarqube.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
     uses: ./.github/workflows/snyk.yml
     with:
       severity_threshold: ${{ vars.SNYK_SEVERITY_THRESHOLD || 'critical' }}
@@ -41,11 +42,13 @@ jobs:
   lint-test:
     name: Lint and Test
     needs: snyk
+    if: ${{ always() && (needs.snyk.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
     uses: ./.github/workflows/lint-test.yml
 
   docker-build:
     name: Docker Build
     needs: lint-test
+    if: ${{ always() && (needs.lint-test.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
     uses: ./.github/workflows/docker-build.yml
     with:
       image_tag: ${{ github.sha }}
@@ -54,6 +57,7 @@ jobs:
   trivy:
     name: Trivy
     needs: docker-build
+    if: ${{ always() && needs.docker-build.result == 'success' }}
     uses: ./.github/workflows/trivy.yml
     with:
       backend_image: ${{ needs.docker-build.outputs.backend_image }}
@@ -65,7 +69,7 @@ jobs:
   ecr-push:
     name: ECR Push
     needs: trivy
-    if: github.event_name != 'pull_request'
+    if: ${{ always() && github.event_name != 'pull_request' && needs.trivy.result == 'success' }}
     uses: ./.github/workflows/ecr-push.yml
     with:
       aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
