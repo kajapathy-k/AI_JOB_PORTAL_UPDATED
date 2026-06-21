@@ -1,0 +1,122 @@
+name: ECR Push
+
+on:
+  workflow_call:
+    inputs:
+      aws_region:
+        description: AWS region.
+        required: true
+        type: string
+      aws_role_to_assume:
+        description: IAM role ARN assumed through GitHub OIDC.
+        required: true
+        type: string
+      backend_ecr_repository:
+        description: Backend ECR repository name.
+        required: false
+        type: string
+        default: hirevoice-backend
+      frontend_ecr_repository:
+        description: Frontend ECR repository name.
+        required: false
+        type: string
+        default: hirevoice-frontend
+      image_tag:
+        description: Immutable image tag.
+        required: true
+        type: string
+      backend_image:
+        description: Backend local image reference.
+        required: true
+        type: string
+      frontend_image:
+        description: Frontend local image reference.
+        required: true
+        type: string
+      backend_image_artifact:
+        description: Backend Docker image artifact name.
+        required: true
+        type: string
+      frontend_image_artifact:
+        description: Frontend Docker image artifact name.
+        required: true
+        type: string
+      push_enabled:
+        description: Whether this invocation may push images.
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      backend_image_uri:
+        description: Published backend ECR image URI.
+        value: ${{ jobs.ecr-push.outputs.backend_image_uri }}
+      frontend_image_uri:
+        description: Published frontend ECR image URI.
+        value: ${{ jobs.ecr-push.outputs.frontend_image_uri }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ecr-push:
+    name: Push Images
+    if: inputs.push_enabled
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      backend_image_uri: ${{ steps.publish.outputs.backend_image_uri }}
+      frontend_image_uri: ${{ steps.publish.outputs.frontend_image_uri }}
+    steps:
+      - name: Validate AWS OIDC configuration
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ inputs.aws_role_to_assume }}
+        run: test -n "$AWS_ROLE_TO_ASSUME" || (echo "AWS_ROLE_TO_ASSUME variable is required." && exit 1)
+
+      - name: Download backend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backend_image_artifact }}
+          path: artifacts/images/backend
+
+      - name: Download frontend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.frontend_image_artifact }}
+          path: artifacts/images/frontend
+
+      - name: Load Docker images
+        run: |
+          docker load -i artifacts/images/backend/backend-image.tar
+          docker load -i artifacts/images/frontend/frontend-image.tar
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push images
+        id: publish
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          BACKEND_REPOSITORY: ${{ inputs.backend_ecr_repository }}
+          FRONTEND_REPOSITORY: ${{ inputs.frontend_ecr_repository }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          BACKEND_IMAGE: ${{ inputs.backend_image }}
+          FRONTEND_IMAGE: ${{ inputs.frontend_image }}
+        run: |
+          backend_uri="$REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG"
+          frontend_uri="$REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG"
+
+          docker tag "$BACKEND_IMAGE" "$backend_uri"
+          docker tag "$FRONTEND_IMAGE" "$frontend_uri"
+          docker push "$backend_uri"
+          docker push "$frontend_uri"
+
+          echo "backend_image_uri=$backend_uri" >> "$GITHUB_OUTPUT"
+          echo "frontend_image_uri=$frontend_uri" >> "$GITHUB_OUTPUT"

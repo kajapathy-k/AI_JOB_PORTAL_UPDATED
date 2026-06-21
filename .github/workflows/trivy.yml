@@ -1,0 +1,96 @@
+name: Trivy
+
+on:
+  workflow_call:
+    inputs:
+      backend_image:
+        description: Backend local image reference.
+        required: true
+        type: string
+      frontend_image:
+        description: Frontend local image reference.
+        required: true
+        type: string
+      backend_image_artifact:
+        description: Backend Docker image artifact name.
+        required: true
+        type: string
+      frontend_image_artifact:
+        description: Frontend Docker image artifact name.
+        required: true
+        type: string
+      severity_threshold:
+        description: Trivy severities that fail the gate.
+        required: false
+        type: string
+        default: HIGH,CRITICAL
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Container Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download backend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backend_image_artifact }}
+          path: artifacts/images/backend
+
+      - name: Download frontend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.frontend_image_artifact }}
+          path: artifacts/images/frontend
+
+      - name: Load Docker images
+        run: |
+          docker load -i artifacts/images/backend/backend-image.tar
+          docker load -i artifacts/images/frontend/frontend-image.tar
+          mkdir -p reports
+
+      - name: Scan backend image
+        id: trivy_backend
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: ${{ inputs.backend_image }}
+          format: table
+          output: reports/trivy-backend.txt
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+
+      - name: Scan frontend image
+        id: trivy_frontend
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: ${{ inputs.frontend_image }}
+          format: table
+          output: reports/trivy-frontend.txt
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce Trivy security gate
+        run: |
+          if [[ "${{ steps.trivy_backend.outcome }}" == "failure" || "${{ steps.trivy_frontend.outcome }}" == "failure" ]]; then
+            echo "Trivy security gate failed."
+            exit 1
+          fi
+          echo "Trivy security gate passed."
