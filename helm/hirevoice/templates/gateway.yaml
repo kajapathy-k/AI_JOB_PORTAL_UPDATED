@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hirevoice-gateway
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: {{ .Values.services.gateway.replicas }}
+  selector:
+    matchLabels:
+      {{- include "hirevoice.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        {{- include "hirevoice.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
+    spec:
+      {{- include "hirevoice.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: gateway
+          image: {{ include "hirevoice.backendImage" . }}
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+          command: ["python"]
+          args: ["-m", "uvicorn", "gateway:app", "--host", "0.0.0.0", "--port", "{{ .Values.services.gateway.port }}"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.gateway.port }}
+          {{- include "hirevoice.backendConfigEnv" . | nindent 10 }}
+          {{- include "hirevoice.httpProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.services.gateway.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hirevoice-gateway
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "hirevoice.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+  ports:
+    - name: http
+      port: {{ .Values.services.gateway.port }}
+      targetPort: http
