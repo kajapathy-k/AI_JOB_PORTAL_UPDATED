@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - eks-migration
   pull_request:
     branches:
       - main
@@ -25,6 +26,7 @@ jobs:
       sonar_host_url: ${{ vars.SONAR_HOST_URL }}
       sonar_project_key: ${{ vars.SONAR_PROJECT_KEY }}
       sonar_project_name: ${{ vars.SONAR_PROJECT_NAME || 'HireVoice' }}
+      sonar_organization: ${{ vars.SONAR_ORGANIZATION || '' }}
     secrets: inherit
 
   snyk:
