@@ -39,18 +39,42 @@ permissions:
   id-token: write
 
 jobs:
+  config:
+    name: Resolve Terraform Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      aws_region: ${{ steps.config.outputs.aws_region }}
+      aws_role_to_assume: ${{ steps.config.outputs.aws_role_to_assume }}
+      terraform_var_file: ${{ steps.config.outputs.terraform_var_file }}
+    steps:
+      - name: Resolve variables
+        id: config
+        env:
+          INPUT_AWS_REGION: ${{ inputs.aws_region }}
+          INPUT_AWS_ROLE_TO_ASSUME: ${{ inputs.aws_role_to_assume }}
+          INPUT_TERRAFORM_VAR_FILE: ${{ inputs.terraform_var_file }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+        run: |
+          echo "aws_region=${INPUT_AWS_REGION:-${AWS_REGION:-us-east-1}}" >> "$GITHUB_OUTPUT"
+          echo "aws_role_to_assume=${INPUT_AWS_ROLE_TO_ASSUME:-$AWS_ROLE_TO_ASSUME}" >> "$GITHUB_OUTPUT"
+          echo "terraform_var_file=$INPUT_TERRAFORM_VAR_FILE" >> "$GITHUB_OUTPUT"
+
   plan:
     name: Terraform Plan
+    needs: config
     uses: ./.github/workflows/terraform-plan.yml
     with:
-      aws_region: ${{ inputs.aws_region || vars.AWS_REGION || 'us-east-1' }}
-      aws_role_to_assume: ${{ inputs.aws_role_to_assume || vars.AWS_ROLE_TO_ASSUME }}
-      terraform_var_file: ${{ inputs.terraform_var_file }}
+      aws_region: ${{ needs.config.outputs.aws_region }}
+      aws_role_to_assume: ${{ needs.config.outputs.aws_role_to_assume }}
+      terraform_var_file: ${{ needs.config.outputs.terraform_var_file }}
     secrets: inherit
 
   apply:
     name: Terraform Apply
-    needs: plan
+    needs:
+      - config
+      - plan
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: ${{ inputs.environment || 'production' }}
@@ -73,8 +97,8 @@ jobs:
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.aws_role_to_assume || vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ inputs.aws_region || vars.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ needs.config.outputs.aws_role_to_assume }}
+          aws-region: ${{ needs.config.outputs.aws_region }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -90,6 +114,7 @@ jobs:
   notify:
     name: Notification
     needs:
+      - config
       - plan
       - apply
     if: always()
