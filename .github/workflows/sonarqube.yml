@@ -65,6 +65,8 @@ jobs:
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.venv/**,**/__pycache__/**,backend/data/**,backups/**,terraform/**/*.tfplan,terraform/*plan*.txt,terraform/*plan*.json
             -Dsonar.coverage.exclusions=**/test_*.py,**/*_test.py,**/*.test.jsx,**/*.test.js,**/*.spec.jsx,**/*.spec.js
             -Dsonar.python.version=3.11
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=600
 
       - name: Run SonarQube scan
         if: ${{ !contains(inputs.sonar_host_url, 'sonarcloud.io') }}
@@ -90,9 +92,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Enforce SonarQube Quality Gate
+      - name: Enforce SonarQube Server Quality Gate
+        if: ${{ !contains(inputs.sonar_host_url, 'sonarcloud.io') }}
         uses: sonarsource/sonarqube-quality-gate-action@v1
         timeout-minutes: 10
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
