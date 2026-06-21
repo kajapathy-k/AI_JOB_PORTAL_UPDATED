@@ -1,0 +1,72 @@
+name: SonarQube
+
+on:
+  workflow_call:
+    inputs:
+      sonar_host_url:
+        description: SonarQube server URL.
+        required: true
+        type: string
+      sonar_project_key:
+        description: SonarQube project key.
+        required: true
+        type: string
+      sonar_project_name:
+        description: SonarQube project display name.
+        required: false
+        type: string
+        default: HireVoice
+
+permissions:
+  contents: read
+
+jobs:
+  sonarqube:
+    name: Scan and Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate SonarQube configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
+          SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
+        run: |
+          test -n "$SONAR_TOKEN" || (echo "SONAR_TOKEN secret is required." && exit 1)
+          test -n "$SONAR_HOST_URL" || (echo "SONAR_HOST_URL variable is required." && exit 1)
+          test -n "$SONAR_PROJECT_KEY" || (echo "SONAR_PROJECT_KEY variable is required." && exit 1)
+
+      - name: Run SonarQube scan
+        uses: sonarsource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ inputs.sonar_project_key }}
+            -Dsonar.projectName=${{ inputs.sonar_project_name }}
+            -Dsonar.sources=backend,frontend/src,frontend/index.html
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.venv/**,**/__pycache__/**,backend/data/**,backups/**,terraform/**/*.tfplan,terraform/*plan*.txt,terraform/*plan*.json
+            -Dsonar.coverage.exclusions=**/test_*.py,**/*_test.py,**/*.test.jsx,**/*.test.js,**/*.spec.jsx,**/*.spec.js
+            -Dsonar.python.version=3.11
+
+      - name: Upload SonarQube scanner reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarqube-scanner-report
+          path: .scannerwork/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 10
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
