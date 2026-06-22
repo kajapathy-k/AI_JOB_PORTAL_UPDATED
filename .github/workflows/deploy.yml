@@ -187,8 +187,8 @@ jobs:
           test -n "$endpoint" || (echo "Smoke test endpoint is unavailable." && exit 1)
           endpoint="${endpoint%/}"
 
-          curl --fail --show-error --location --retry 10 --retry-delay 10 --max-time 20 "$endpoint/"
-          curl --fail --show-error --location --retry 10 --retry-delay 10 --max-time 20 "$endpoint/api/"
+          curl --fail --show-error --location --retry 10 --retry-delay 10 --retry-all-errors --max-time 20 "$endpoint/"
+          curl --fail --show-error --location --retry 10 --retry-delay 10 --retry-all-errors --max-time 20 "$endpoint/api/"
 
       - name: Send deployment notification
         if: always()
