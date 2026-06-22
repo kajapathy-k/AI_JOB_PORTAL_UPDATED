@@ -1,0 +1,214 @@
+name: HireVoice CD
+
+on:
+  workflow_run:
+    workflows:
+      - HireVoice CI
+    types:
+      - completed
+    branches:
+      - eks-migration
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: hirevoice-cd-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: GitOps Deploy
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'eks-migration'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+    env:
+      APPLICATION_NAME: hirevoice-app
+      APPLICATION_NAMESPACE: argocd
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      DEPLOY_BRANCH: eks-migration
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'hirevoice-dev-eks' }}
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+      SMOKE_TEST_URL: ${{ vars.HIREVOICE_SMOKE_TEST_URL || '' }}
+      WORKLOAD_NAMESPACE: hirevoice
+    steps:
+      - name: Checkout GitOps branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+          fetch-depth: 0
+
+      - name: Validate deployment configuration
+        env:
+          WORKFLOW_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          test -n "$IMAGE_TAG" || (echo "IMAGE_TAG is required." && exit 1)
+          test -n "$AWS_REGION" || (echo "AWS_REGION is required." && exit 1)
+          test -n "$AWS_ROLE_TO_ASSUME" || (echo "AWS_ROLE_TO_ASSUME is required." && exit 1)
+          test -n "$EKS_CLUSTER_NAME" || (echo "EKS_CLUSTER_NAME is required." && exit 1)
+          echo "Deploying image tag: $IMAGE_TAG"
+          echo "Source CI run: $WORKFLOW_RUN_URL"
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Update Helm image tags
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("helm/hirevoice/values.yaml")
+          image_tag = os.environ["IMAGE_TAG"]
+          lines = path.read_text(encoding="utf-8").splitlines()
+
+          in_images = False
+          current_image = None
+          replacements = 0
+          updated = []
+
+          for line in lines:
+              stripped = line.strip()
+              if line == "images:":
+                  in_images = True
+                  current_image = None
+              elif in_images and line and not line.startswith(" "):
+                  in_images = False
+                  current_image = None
+
+              if in_images:
+                  if line.startswith("  backend:"):
+                      current_image = "backend"
+                  elif line.startswith("  frontend:"):
+                      current_image = "frontend"
+                  elif line.startswith("  ") and not line.startswith("    ") and stripped.endswith(":"):
+                      current_image = None
+
+                  if current_image in {"backend", "frontend"} and line.startswith("    tag:"):
+                      updated.append(f'    tag: "{image_tag}"')
+                      replacements += 1
+                      continue
+
+              updated.append(line)
+
+          if replacements != 2:
+              raise SystemExit(f"Expected to update 2 image tags, updated {replacements}.")
+
+          path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+          PY
+
+      - name: Commit GitOps image tag
+        id: gitops
+        run: |
+          git diff -- helm/hirevoice/values.yaml
+
+          if git diff --quiet -- helm/hirevoice/values.yaml; then
+            echo "No image tag change required."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "deployment_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add helm/hirevoice/values.yaml
+          git commit -m "gitops: deploy ${IMAGE_TAG} [skip ci]"
+          git push origin "HEAD:${DEPLOY_BRANCH}"
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "deployment_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for ArgoCD sync
+        run: |
+          expected_revision="${{ steps.gitops.outputs.deployment_commit }}"
+          deadline=$((SECONDS + 900))
+
+          while [[ "$SECONDS" -lt "$deadline" ]]; do
+            sync_status="$(kubectl get application "$APPLICATION_NAME" -n "$APPLICATION_NAMESPACE" -o jsonpath='{.status.sync.status}' 2>/dev/null || true)"
+            health_status="$(kubectl get application "$APPLICATION_NAME" -n "$APPLICATION_NAMESPACE" -o jsonpath='{.status.health.status}' 2>/dev/null || true)"
+            revision="$(kubectl get application "$APPLICATION_NAME" -n "$APPLICATION_NAMESPACE" -o jsonpath='{.status.sync.revision}' 2>/dev/null || true)"
+
+            echo "ArgoCD status: sync=${sync_status:-unknown} health=${health_status:-unknown} revision=${revision:-unknown}"
+
+            if [[ "$sync_status" == "Synced" && "$health_status" == "Healthy" && "$revision" == "$expected_revision" ]]; then
+              exit 0
+            fi
+
+            sleep 15
+          done
+
+          kubectl get application "$APPLICATION_NAME" -n "$APPLICATION_NAMESPACE" -o yaml
+          exit 1
+
+      - name: Verify Kubernetes rollout
+        run: |
+          kubectl -n "$WORKLOAD_NAMESPACE" wait --for=condition=available deployment --all --timeout=300s
+
+          for component in auth frontend gateway interview jobs screening; do
+            kubectl -n "$WORKLOAD_NAMESPACE" wait --for=condition=Ready pod -l "app.kubernetes.io/component=${component}" --timeout=300s
+          done
+
+          kubectl -n "$WORKLOAD_NAMESPACE" get deployments
+          kubectl -n "$WORKLOAD_NAMESPACE" get pods
+
+      - name: Run smoke tests
+        run: |
+          endpoint="$SMOKE_TEST_URL"
+
+          if [[ -z "$endpoint" ]]; then
+            for _ in {1..40}; do
+              host="$(kubectl -n "$WORKLOAD_NAMESPACE" get ingress hirevoice -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+              if [[ -n "$host" ]]; then
+                endpoint="http://${host}"
+                break
+              fi
+              sleep 15
+            done
+          fi
+
+          test -n "$endpoint" || (echo "Smoke test endpoint is unavailable." && exit 1)
+          endpoint="${endpoint%/}"
+
+          curl --fail --show-error --location --retry 10 --retry-delay 10 --max-time 20 "$endpoint/"
+          curl --fail --show-error --location --retry 10 --retry-delay 10 --max-time 20 "$endpoint/api/"
+
+      - name: Send deployment notification
+        if: always()
+        uses: ./.github/actions/send-notification
+        with:
+          status: ${{ job.status == 'success' && 'success' || 'failure' }}
+          notification_type: general
+          smtp_server: ${{ secrets.SMTP_SERVER }}
+          smtp_port: ${{ secrets.SMTP_PORT }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          email_to: ${{ vars.NOTIFICATION_EMAIL_TO }}
+          email_from: ${{ vars.NOTIFICATION_EMAIL_FROM }}
+          subject: HireVoice CD ${{ job.status == 'success' && 'succeeded' || 'failed' }} - ${{ env.IMAGE_TAG }}
+          body: |
+            HireVoice CD completed.
+
+            Repository: ${{ github.repository }}
+            Deploy branch: ${{ env.DEPLOY_BRANCH }}
+            Image tag: ${{ env.IMAGE_TAG }}
+            GitOps commit: ${{ steps.gitops.outputs.deployment_commit }}
+            ArgoCD application: ${{ env.APPLICATION_NAME }}
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
