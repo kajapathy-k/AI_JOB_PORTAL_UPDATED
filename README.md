@@ -1,5 +1,7 @@
 # HireVoice — AI hiring portal
 
+<!-- CD validation trigger: 2026-06-22 -->
+
 A Glassdoor-style job portal where candidates apply with a resume, an
 **AI screener (LangGraph)** scores the resume against the role, and strong
 matches are invited to an **AI voice interview** (Groq Whisper STT → Llama →
