@@ -9,6 +9,8 @@ spec:
     repoURL: https://github.com/kajapathy-k/AI_JOB_PORTAL_UPDATED.git
     targetRevision: eks-migration
     path: helm/hirevoice
+    helm:
+      releaseName: hirevoice
   destination:
     server: https://kubernetes.default.svc
     namespace: hirevoice
