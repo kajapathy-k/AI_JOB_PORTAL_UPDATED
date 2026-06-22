@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hirevoice-jobs
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jobs
+spec:
+  replicas: {{ .Values.services.jobs.replicas }}
+  selector:
+    matchLabels:
+      {{- include "hirevoice.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: jobs
+  template:
+    metadata:
+      labels:
+        {{- include "hirevoice.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: jobs
+    spec:
+      {{- include "hirevoice.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: jobs
+          image: {{ include "hirevoice.backendImage" . }}
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+          command: ["python"]
+          args: ["-m", "uvicorn", "services.jobs.main:app", "--host", "0.0.0.0", "--port", "{{ .Values.services.jobs.port }}"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.jobs.port }}
+          {{- include "hirevoice.backendConfigEnv" . | nindent 10 }}
+          {{- include "hirevoice.rdsEnv" . | nindent 10 }}
+          {{- include "hirevoice.jwtEnv" . | nindent 12 }}
+          {{- include "hirevoice.httpProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.services.jobs.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hirevoice-jobs
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jobs
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "hirevoice.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: jobs
+  ports:
+    - name: http
+      port: {{ .Values.services.jobs.port }}
+      targetPort: http

@@ -1,0 +1,139 @@
+namespace:
+  create: true
+  name: hirevoice
+
+images:
+  backend:
+    repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-backend
+    tag: v2
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-frontend
+    tag: v2
+    pullPolicy: Always
+
+imagePullSecrets: []
+
+backendConfig:
+  DB_HOST: hirevoice-dev-postgres.c8h4c6uuq1a7.us-east-1.rds.amazonaws.com
+  DB_PORT: "5432"
+  DB_SSLMODE: require
+  DB_NAME: hirevoice
+  AUTH_DB_NAME: hirevoice_auth
+  JOBS_DB_NAME: hirevoice_jobs
+  AUTH_URL: http://hirevoice-auth:9001
+  JOBS_URL: http://hirevoice-jobs:9002
+  SCREENING_URL: http://hirevoice-screening:9003
+  INTERVIEW_URL: http://hirevoice-interview:9004
+  SCREEN_PASS_THRESHOLD: "60"
+  JWT_EXPIRE_MINUTES: "720"
+  DB_BOOTSTRAP_LOG_LEVEL: INFO
+
+frontendConfig:
+  VITE_API_URL: /api
+
+secrets:
+  rdsCredentials:
+    name: rds-credentials
+    userKey: DB_USER
+    passwordKey: DB_PASSWORD
+  jwt:
+    name: jwt-secret
+    key: JWT_SECRET
+  groq:
+    name: groq-api-key
+    key: GROQ_API_KEY
+
+dbBootstrap:
+  enabled: true
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+services:
+  auth:
+    replicas: 2
+    port: 9001
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  jobs:
+    replicas: 2
+    port: 9002
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  screening:
+    replicas: 2
+    port: 9003
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+  interview:
+    replicas: 2
+    port: 9004
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+  gateway:
+    replicas: 2
+    port: 8000
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  frontend:
+    replicas: 2
+    port: 5173
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+probes:
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+ingress:
+  enabled: true
+  className: alb
+  scheme: internet-facing
+  targetType: ip
+  listenPorts:
+    - HTTP: 80
+  healthcheckPath: /
+  successCodes: "200"

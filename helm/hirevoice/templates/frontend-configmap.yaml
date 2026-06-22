@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hirevoice-frontend-config
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.frontendConfig }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
