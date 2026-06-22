@@ -22,3 +22,9 @@ httpx
 
 # Resume parsing
 pypdf                     # extract text from uploaded PDF resumes
+
+# Security constraints for transitive packages flagged by container scans.
+jaraco.context>=6.1.0
+langsmith>=0.8.18
+setuptools>=80.0.0
+wheel>=0.46.2
