@@ -55,7 +55,7 @@ jobs:
       - name: Scan backend image
         id: trivy_backend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ inputs.backend_image }}
           format: table
@@ -68,7 +68,7 @@ jobs:
       - name: Scan frontend image
         id: trivy_frontend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ inputs.frontend_image }}
           format: table
