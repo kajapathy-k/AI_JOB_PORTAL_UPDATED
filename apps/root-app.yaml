@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kajapathy-k/AI_JOB_PORTAL_UPDATED.git
-    targetRevision: main
+    targetRevision: eks-migration
     path: apps
     directory:
       include: hirevoice-app.yaml
