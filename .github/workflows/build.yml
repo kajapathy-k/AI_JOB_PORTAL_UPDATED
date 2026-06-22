@@ -68,7 +68,9 @@ jobs:
 
   ecr-push:
     name: ECR Push
-    needs: trivy
+    needs:
+      - docker-build
+      - trivy
     if: ${{ always() && github.event_name != 'pull_request' && needs.trivy.result == 'success' }}
     uses: ./.github/workflows/ecr-push.yml
     with:
