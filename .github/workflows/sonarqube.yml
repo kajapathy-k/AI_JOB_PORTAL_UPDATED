@@ -52,14 +52,13 @@ jobs:
 
       - name: Run SonarCloud scan
         if: contains(inputs.sonar_host_url, 'sonarcloud.io')
-        uses: sonarsource/sonarqube-scan-action@v5
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
         with:
           args: >
             -Dsonar.projectKey=${{ inputs.sonar_project_key }}
-            -Dsonar.projectName=${{ inputs.sonar_project_name }}
+            "-Dsonar.projectName=${{ inputs.sonar_project_name }}"
             -Dsonar.organization=${{ inputs.sonar_organization }}
             -Dsonar.sources=backend,frontend/src,frontend/index.html
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.venv/**,**/__pycache__/**,backend/data/**,backups/**,terraform/**/*.tfplan,terraform/*plan*.txt,terraform/*plan*.json
@@ -69,14 +68,14 @@ jobs:
 
       - name: Run SonarQube scan
         if: ${{ !contains(inputs.sonar_host_url, 'sonarcloud.io') }}
-        uses: sonarsource/sonarqube-scan-action@v5
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
         with:
           args: >
             -Dsonar.projectKey=${{ inputs.sonar_project_key }}
-            -Dsonar.projectName=${{ inputs.sonar_project_name }}
+            "-Dsonar.projectName=${{ inputs.sonar_project_name }}"
             -Dsonar.sources=backend,frontend/src,frontend/index.html
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.venv/**,**/__pycache__/**,backend/data/**,backups/**,terraform/**/*.tfplan,terraform/*plan*.txt,terraform/*plan*.json
             -Dsonar.coverage.exclusions=**/test_*.py,**/*_test.py,**/*.test.jsx,**/*.test.js,**/*.spec.jsx,**/*.spec.js
