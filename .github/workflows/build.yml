@@ -8,6 +8,10 @@ on:
       - eks-migration
       - ci-validation
   pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
     branches:
       - main
 
@@ -71,7 +75,7 @@ jobs:
     needs:
       - docker-build
       - trivy
-    if: ${{ always() && github.event_name != 'pull_request' && needs.trivy.result == 'success' }}
+    if: ${{ always() && github.event_name == 'push' && needs.trivy.result == 'success' }}
     uses: ./.github/workflows/ecr-push.yml
     with:
       aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
