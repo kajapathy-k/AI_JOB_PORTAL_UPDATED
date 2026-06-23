@@ -42,3 +42,5 @@ cp terraform.tfvars.example terraform.tfvars
 Terraform state will contain sensitive metadata. Use a remote backend with
 encryption and locking, such as S3 plus DynamoDB, before using this beyond local
 validation.
+
+Verification trigger: Terraform CI check at 2026-06-23T19:07:08+05:30.
