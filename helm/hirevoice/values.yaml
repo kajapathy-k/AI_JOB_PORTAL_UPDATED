@@ -5,11 +5,11 @@ namespace:
 images:
   backend:
     repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-backend
-    tag: "5d065922c2956fd23f7809797df0cbf44a3b7e6a"
+    tag: "6402ea0430c8c43d3cd3406aab02bd762fc2f13c"
     pullPolicy: IfNotPresent
   frontend:
     repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-frontend
-    tag: "5d065922c2956fd23f7809797df0cbf44a3b7e6a"
+    tag: "6402ea0430c8c43d3cd3406aab02bd762fc2f13c"
     pullPolicy: Always
 
 imagePullSecrets: []
