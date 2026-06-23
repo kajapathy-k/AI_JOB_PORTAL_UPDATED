@@ -9,7 +9,7 @@ images:
     pullPolicy: IfNotPresent
   frontend:
     repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-frontend
-    tag: "3cf81f1181b48b1fae03dcf7b64e22f768fa9f62"
+    tag: alb-hostfix-ce6e1e9c921b
     pullPolicy: Always
 
 imagePullSecrets: []
@@ -135,5 +135,8 @@ ingress:
   targetType: ip
   listenPorts:
     - HTTP: 80
+    - HTTPS: 443
+  certificateArn: arn:aws:acm:us-east-1:768979069805:certificate/d3a16502-4c57-47e8-9017-cf62f2072870
+  sslRedirect: "443"
   healthcheckPath: /
   successCodes: "200"
