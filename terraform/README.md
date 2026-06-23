@@ -47,3 +47,4 @@ Verification trigger: Terraform CI check at 2026-06-23T19:07:08+05:30.
 Verification retry: Terraform CI secret fallback check at 2026-06-23T19:09:44+05:30.
 Verification diagnostic: Terraform CI plan annotation check at 2026-06-23T19:15:25+05:30.
 Verification rerun: Terraform CI after IAM read-only remediation at 2026-06-23T19:21:52+05:30.
+Verification rerun: Terraform CI after ELB attribute read permission at 2026-06-23T19:24:26+05:30.
