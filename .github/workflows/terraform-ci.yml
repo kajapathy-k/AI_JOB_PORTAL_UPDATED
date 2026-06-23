@@ -1,0 +1,46 @@
+name: Terraform CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - eks-migration
+      - terraform-pipeline
+    paths:
+      - 'terraform/**'
+      - 'modules/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+      - eks-migration
+    paths:
+      - 'terraform/**'
+      - 'modules/**'
+  workflow_dispatch:
+    inputs:
+      terraform_var_file:
+        description: Optional tfvars file path relative to terraform/.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-plan:
+    name: Terraform fmt, validate, and plan
+    uses: ./.github/workflows/terraform-plan.yml
+    with:
+      aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      aws_role_to_assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      terraform_version: 1.6.6
+      terraform_var_file: ${{ github.event_name == 'workflow_dispatch' && inputs.terraform_var_file || '' }}
+    secrets: inherit
