@@ -114,10 +114,23 @@ jobs:
           if [[ -n "$TERRAFORM_VAR_FILE" ]]; then
             plan_args="$plan_args -var-file=$TERRAFORM_VAR_FILE"
           fi
-          terraform plan -no-color $plan_args
+          set +e
+          terraform plan -no-color $plan_args > ../artifacts/terraform/hirevoice-plan.log 2>&1
+          plan_status=$?
+          cat ../artifacts/terraform/hirevoice-plan.log
+          set -e
+          if [[ "$plan_status" -ne 0 ]]; then
+            error_tail="$(tail -n 25 ../artifacts/terraform/hirevoice-plan.log)"
+            error_tail="${error_tail//'%'/'%25'}"
+            error_tail="${error_tail//$'\n'/'%0A'}"
+            error_tail="${error_tail//$'\r'/'%0D'}"
+            echo "::error title=Terraform plan failed::$error_tail"
+            exit "$plan_status"
+          fi
           terraform show -no-color ../artifacts/terraform/hirevoice.tfplan > ../artifacts/terraform/hirevoice-plan.txt
 
       - name: Upload Terraform plan
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.plan_artifact }}
