@@ -47,6 +47,9 @@ Repository or environment variables:
 Repository or environment secrets:
 
 - `GROQ_API_KEY`: supplied to Terraform as `TF_VAR_groq_api_key`.
+  Terraform CI plan runs can use a non-production placeholder when this secret
+  is unavailable. Manual apply planning requires the real secret and fails fast
+  when it is missing.
 
 GitHub Environment:
 

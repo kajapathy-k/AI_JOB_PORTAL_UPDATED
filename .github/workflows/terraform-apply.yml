@@ -68,6 +68,7 @@ jobs:
       aws_region: ${{ needs.config.outputs.aws_region }}
       aws_role_to_assume: ${{ needs.config.outputs.aws_role_to_assume }}
       terraform_var_file: ${{ needs.config.outputs.terraform_var_file }}
+      require_real_secrets: true
     secrets: inherit
 
   apply:

@@ -21,10 +21,15 @@ on:
         required: false
         type: string
         default: ''
+      require_real_secrets:
+        description: Require production secrets instead of CI placeholders.
+        required: false
+        type: boolean
+        default: false
     secrets:
       GROQ_API_KEY:
         description: Groq API key supplied to Terraform as TF_VAR_groq_api_key.
-        required: true
+        required: false
     outputs:
       plan_artifact:
         description: Terraform plan artifact name.
@@ -54,7 +59,7 @@ jobs:
     env:
       TF_IN_AUTOMATION: true
       TF_INPUT: false
-      TF_VAR_groq_api_key: ${{ secrets.GROQ_API_KEY }}
+      TF_VAR_groq_api_key: ${{ secrets.GROQ_API_KEY || 'ci-placeholder-not-for-apply' }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -72,7 +77,13 @@ jobs:
 
       - name: Validate Terraform secrets
         working-directory: .
-        run: test -n "$TF_VAR_groq_api_key" || (echo "GROQ_API_KEY secret is required for Terraform plan." && exit 1)
+        env:
+          REQUIRE_REAL_SECRETS: ${{ inputs.require_real_secrets }}
+        run: |
+          if [[ "$REQUIRE_REAL_SECRETS" == "true" && "$TF_VAR_groq_api_key" == "ci-placeholder-not-for-apply" ]]; then
+            echo "GROQ_API_KEY secret is required for Terraform apply planning."
+            exit 1
+          fi
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
