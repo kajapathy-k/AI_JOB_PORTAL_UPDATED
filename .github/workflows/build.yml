@@ -51,6 +51,11 @@ jobs:
           SNYK_SEVERITY_THRESHOLD: ${{ vars.SNYK_SEVERITY_THRESHOLD }}
           VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
+          if [ "$GITHUB_REF_NAME" = "personal-account-gitops" ]; then
+            AWS_ACCOUNT_ID="334401495505"
+            AWS_ROLE_TO_ASSUME="arn:aws:iam::334401495505:role/GitHubActionsRole"
+          fi
+
           echo "aws_account_id=${AWS_ACCOUNT_ID:-334401495505}" >> "$GITHUB_OUTPUT"
           echo "aws_region=${AWS_REGION:-us-east-1}" >> "$GITHUB_OUTPUT"
           echo "aws_role_to_assume=$AWS_ROLE_TO_ASSUME" >> "$GITHUB_OUTPUT"

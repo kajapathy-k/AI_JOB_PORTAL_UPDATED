@@ -34,7 +34,7 @@ jobs:
       APPLICATION_NAME: hirevoice-app
       APPLICATION_NAMESPACE: argocd
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-      AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      AWS_ROLE_TO_ASSUME: arn:aws:iam::334401495505:role/GitHubActionsRole
       DEPLOY_BRANCH: personal-account-gitops
       EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'hirevoice-dev-eks' }}
       IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
