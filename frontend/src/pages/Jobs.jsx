@@ -74,7 +74,7 @@ export default function Jobs() {
         <div className="relative">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-400/20 bg-brand-400/8 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-300">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-400" />
-            AI-powered hiring
+            AI-powered hiring - CI/CD smoke test
           </span>
 
           <h1
