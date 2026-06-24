@@ -14,6 +14,9 @@ metadata:
     {{- with .Values.ingress.certificateArn }}
     alb.ingress.kubernetes.io/certificate-arn: {{ . | quote }}
     {{- end }}
+    {{- with .Values.ingress.sslPolicy }}
+    alb.ingress.kubernetes.io/ssl-policy: {{ . | quote }}
+    {{- end }}
     {{- with .Values.ingress.sslRedirect }}
     alb.ingress.kubernetes.io/ssl-redirect: {{ . | quote }}
     {{- end }}

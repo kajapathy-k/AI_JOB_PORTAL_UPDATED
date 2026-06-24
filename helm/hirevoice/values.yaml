@@ -135,5 +135,9 @@ ingress:
   targetType: ip
   listenPorts:
     - HTTP: 80
+    - HTTPS: 443
+  certificateArn: arn:aws:acm:us-east-1:334401495505:certificate/23c1c108-8e25-4b7b-b7de-fea8c3279eab
+  sslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+  sslRedirect: "443"
   healthcheckPath: /
   successCodes: "200"
