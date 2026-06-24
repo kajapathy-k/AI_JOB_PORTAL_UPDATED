@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - develop
-      - eks-migration
+      - personal-account-gitops
   pull_request:
     branches:
       - main
@@ -51,7 +51,7 @@ jobs:
           SNYK_SEVERITY_THRESHOLD: ${{ vars.SNYK_SEVERITY_THRESHOLD }}
           VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
-          echo "aws_account_id=${AWS_ACCOUNT_ID:-768979069805}" >> "$GITHUB_OUTPUT"
+          echo "aws_account_id=${AWS_ACCOUNT_ID:-334401495505}" >> "$GITHUB_OUTPUT"
           echo "aws_region=${AWS_REGION:-us-east-1}" >> "$GITHUB_OUTPUT"
           echo "aws_role_to_assume=$AWS_ROLE_TO_ASSUME" >> "$GITHUB_OUTPUT"
           echo "backend_ecr_repository=${BACKEND_ECR_REPOSITORY:-hirevoice-backend}" >> "$GITHUB_OUTPUT"
