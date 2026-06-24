@@ -7,7 +7,7 @@ on:
     types:
       - completed
     branches:
-      - eks-migration
+      - personal-account-gitops
 
 permissions:
   contents: write
@@ -24,7 +24,7 @@ jobs:
       ${{
         github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'eks-migration'
+        github.event.workflow_run.head_branch == 'personal-account-gitops'
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -35,7 +35,7 @@ jobs:
       APPLICATION_NAMESPACE: argocd
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
-      DEPLOY_BRANCH: eks-migration
+      DEPLOY_BRANCH: personal-account-gitops
       EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'hirevoice-dev-eks' }}
       IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
       SMOKE_TEST_URL: https://hirevoice.in-sur.site
