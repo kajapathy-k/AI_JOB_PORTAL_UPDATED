@@ -4,18 +4,18 @@ namespace:
 
 images:
   backend:
-    repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-backend
-    tag: "3f0d858577802bec33a9e82d35a9c4f4c8dcc4e5"
+    repository: 334401495505.dkr.ecr.us-east-1.amazonaws.com/hirevoice-backend
+    tag: v2
     pullPolicy: IfNotPresent
   frontend:
-    repository: 768979069805.dkr.ecr.us-east-1.amazonaws.com/hirevoice-frontend
-    tag: "3f0d858577802bec33a9e82d35a9c4f4c8dcc4e5"
+    repository: 334401495505.dkr.ecr.us-east-1.amazonaws.com/hirevoice-frontend
+    tag: v2
     pullPolicy: Always
 
 imagePullSecrets: []
 
 backendConfig:
-  DB_HOST: hirevoice-dev-postgres.c8h4c6uuq1a7.us-east-1.rds.amazonaws.com
+  DB_HOST: hirevoice-dev-postgres.ccle2syiw3sq.us-east-1.rds.amazonaws.com
   DB_PORT: "5432"
   DB_SSLMODE: require
   DB_NAME: hirevoice
@@ -135,8 +135,5 @@ ingress:
   targetType: ip
   listenPorts:
     - HTTP: 80
-    - HTTPS: 443
-  certificateArn: arn:aws:acm:us-east-1:768979069805:certificate/d3a16502-4c57-47e8-9017-cf62f2072870
-  sslRedirect: "443"
   healthcheckPath: /
   successCodes: "200"

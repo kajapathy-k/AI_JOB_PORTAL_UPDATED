@@ -1,0 +1,7 @@
+awsRegion: us-east-1
+externalSecretsNamespace: external-secrets
+hirevoiceNamespace: hirevoice
+serviceAccountName: external-secrets
+jwtSecretName: hirevoice-dev/jwt-secret
+groqSecretName: hirevoice-dev/groq-api-key
+rdsSecretName: arn:aws:secretsmanager:us-east-1:334401495505:secret:rds!db-435a743b-651e-46bd-833b-7c41876bf061-Ew5LYx
