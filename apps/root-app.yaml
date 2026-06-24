@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kajapathy-k/AI_JOB_PORTAL_UPDATED.git
-    targetRevision: eks-migration
+    targetRevision: personal-account-gitops
     path: apps
     directory:
       include: "{external-secrets-resources-app.yaml,hirevoice-app.yaml}"
