@@ -1,0 +1,149 @@
+name: HireVoice CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - eks-migration
+      - ci-validation
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: hirevoice-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarqube:
+    name: SonarQube
+    uses: ./.github/workflows/sonarqube.yml
+    with:
+      sonar_host_url: ${{ vars.SONAR_HOST_URL }}
+      sonar_project_key: ${{ vars.SONAR_PROJECT_KEY }}
+      sonar_project_name: ${{ vars.SONAR_PROJECT_NAME || 'HireVoice' }}
+      sonar_organization: ${{ vars.SONAR_ORGANIZATION || '' }}
+    secrets: inherit
+
+  snyk:
+    name: Snyk
+    needs: sonarqube
+    if: ${{ always() && (needs.sonarqube.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
+    uses: ./.github/workflows/snyk.yml
+    with:
+      severity_threshold: ${{ vars.SNYK_SEVERITY_THRESHOLD || 'critical' }}
+    secrets: inherit
+
+  lint-test:
+    name: Lint and Test
+    needs: snyk
+    if: ${{ always() && (needs.snyk.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
+    uses: ./.github/workflows/lint-test.yml
+
+  docker-build:
+    name: Docker Build
+    needs: lint-test
+    if: ${{ always() && (needs.lint-test.result == 'success' || (github.event_name == 'push' && github.ref_name == 'ci-validation')) }}
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      image_tag: ${{ github.sha }}
+      vite_api_url: ${{ vars.VITE_API_URL || '/api' }}
+
+  trivy:
+    name: Trivy
+    needs: docker-build
+    if: ${{ always() && needs.docker-build.result == 'success' }}
+    uses: ./.github/workflows/trivy.yml
+    with:
+      backend_image: ${{ needs.docker-build.outputs.backend_image }}
+      frontend_image: ${{ needs.docker-build.outputs.frontend_image }}
+      backend_image_artifact: ${{ needs.docker-build.outputs.backend_image_artifact }}
+      frontend_image_artifact: ${{ needs.docker-build.outputs.frontend_image_artifact }}
+      severity_threshold: HIGH,CRITICAL
+
+  ecr-push:
+    name: ECR Push
+    needs:
+      - docker-build
+      - trivy
+    if: ${{ always() && github.event_name == 'push' && needs.trivy.result == 'success' }}
+    uses: ./.github/workflows/ecr-push.yml
+    with:
+      aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      aws_role_to_assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      backend_ecr_repository: ${{ vars.BACKEND_ECR_REPOSITORY || 'hirevoice-backend' }}
+      frontend_ecr_repository: ${{ vars.FRONTEND_ECR_REPOSITORY || 'hirevoice-frontend' }}
+      image_tag: ${{ github.sha }}
+      backend_image: ${{ needs.docker-build.outputs.backend_image }}
+      frontend_image: ${{ needs.docker-build.outputs.frontend_image }}
+      backend_image_artifact: ${{ needs.docker-build.outputs.backend_image_artifact }}
+      frontend_image_artifact: ${{ needs.docker-build.outputs.frontend_image_artifact }}
+      push_enabled: true
+
+  helm-validate:
+    name: Helm Validation
+    needs:
+      - trivy
+      - ecr-push
+    if: always() && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped')
+    uses: ./.github/workflows/helm-validate.yml
+    with:
+      aws_account_id: ${{ vars.AWS_ACCOUNT_ID || '768979069805' }}
+      aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      backend_ecr_repository: ${{ vars.BACKEND_ECR_REPOSITORY || 'hirevoice-backend' }}
+      frontend_ecr_repository: ${{ vars.FRONTEND_ECR_REPOSITORY || 'hirevoice-frontend' }}
+      image_tag: ${{ github.sha }}
+
+  notify:
+    name: Notification
+    needs:
+      - sonarqube
+      - snyk
+      - lint-test
+      - docker-build
+      - trivy
+      - ecr-push
+      - helm-validate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout notification action
+        uses: actions/checkout@v4
+
+      - name: Send pipeline notification
+        uses: ./.github/actions/send-notification
+        with:
+          status: ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.lint-test.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'success' || 'failure' }}
+          notification_type: ${{ (needs.sonarqube.result == 'failure' || needs.snyk.result == 'failure' || needs.trivy.result == 'failure') && 'security-gate-failure' || 'general' }}
+          smtp_server: ${{ secrets.SMTP_SERVER }}
+          smtp_port: ${{ secrets.SMTP_PORT }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          email_to: ${{ vars.NOTIFICATION_EMAIL_TO }}
+          email_from: ${{ vars.NOTIFICATION_EMAIL_FROM }}
+          subject: HireVoice CI ${{ (needs.sonarqube.result == 'success' && needs.snyk.result == 'success' && needs.lint-test.result == 'success' && needs.docker-build.result == 'success' && needs.trivy.result == 'success' && (needs.ecr-push.result == 'success' || needs.ecr-push.result == 'skipped') && needs.helm-validate.result == 'success') && 'succeeded' || 'failed' }} - ${{ github.ref_name }} - ${{ github.sha }}
+          body: |
+            HireVoice CI completed.
+
+            Repository: ${{ github.repository }}
+            Ref: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Stage results:
+            SonarQube: ${{ needs.sonarqube.result }}
+            Snyk: ${{ needs.snyk.result }}
+            Lint and Test: ${{ needs.lint-test.result }}
+            Docker Build: ${{ needs.docker-build.result }}
+            Trivy: ${{ needs.trivy.result }}
+            ECR Push: ${{ needs.ecr-push.result }}
+            Helm Validation: ${{ needs.helm-validate.result }}

@@ -1,0 +1,65 @@
+name: Helm Validate
+
+on:
+  workflow_call:
+    inputs:
+      aws_account_id:
+        description: AWS account ID that owns the ECR repositories.
+        required: true
+        type: string
+      aws_region:
+        description: AWS region for the ECR repositories.
+        required: true
+        type: string
+      backend_ecr_repository:
+        description: Backend ECR repository name.
+        required: false
+        type: string
+        default: hirevoice-backend
+      frontend_ecr_repository:
+        description: Frontend ECR repository name.
+        required: false
+        type: string
+        default: hirevoice-frontend
+      image_tag:
+        description: Image tag rendered into the chart.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  helm-validate:
+    name: Lint and Render
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm lint
+        run: helm lint helm/hirevoice
+
+      - name: Helm template
+        run: |
+          mkdir -p artifacts/helm
+          helm template hirevoice helm/hirevoice \
+            --namespace hirevoice \
+            --set namespace.create=false \
+            --set images.backend.repository=${{ inputs.aws_account_id }}.dkr.ecr.${{ inputs.aws_region }}.amazonaws.com/${{ inputs.backend_ecr_repository }} \
+            --set images.backend.tag=${{ inputs.image_tag }} \
+            --set images.frontend.repository=${{ inputs.aws_account_id }}.dkr.ecr.${{ inputs.aws_region }}.amazonaws.com/${{ inputs.frontend_ecr_repository }} \
+            --set images.frontend.tag=${{ inputs.image_tag }} \
+            > artifacts/helm/hirevoice-rendered.yaml
+
+      - name: Upload rendered manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-rendered-manifests
+          path: artifacts/helm/hirevoice-rendered.yaml
+          if-no-files-found: error
+          retention-days: 14

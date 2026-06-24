@@ -1,0 +1,46 @@
+{{- if .Values.dbBootstrap.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hirevoice-db-bootstrap
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-bootstrap
+  annotations:
+    {{- toYaml .Values.dbBootstrap.annotations | nindent 4 }}
+spec:
+  backoffLimit: {{ .Values.dbBootstrap.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.dbBootstrap.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "hirevoice.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: db-bootstrap
+    spec:
+      restartPolicy: Never
+      {{- include "hirevoice.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: db-bootstrap
+          image: {{ include "hirevoice.backendImage" . }}
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+          command: ["python"]
+          args: ["-m", "common.db_bootstrap"]
+          env:
+            {{- range $key, $value := .Values.backendConfig }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.rdsCredentials.name }}
+                  key: {{ .Values.secrets.rdsCredentials.userKey }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.rdsCredentials.name }}
+                  key: {{ .Values.secrets.rdsCredentials.passwordKey }}
+          resources:
+            {{- toYaml .Values.dbBootstrap.resources | nindent 12 }}
+{{- end }}

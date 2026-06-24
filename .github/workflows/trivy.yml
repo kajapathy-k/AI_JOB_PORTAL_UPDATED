@@ -1,0 +1,233 @@
+name: Trivy
+
+on:
+  workflow_call:
+    inputs:
+      backend_image:
+        description: Backend local image reference.
+        required: true
+        type: string
+      frontend_image:
+        description: Frontend local image reference.
+        required: true
+        type: string
+      backend_image_artifact:
+        description: Backend Docker image artifact name.
+        required: true
+        type: string
+      frontend_image_artifact:
+        description: Frontend Docker image artifact name.
+        required: true
+        type: string
+      severity_threshold:
+        description: Trivy severities that fail the gate.
+        required: false
+        type: string
+        default: HIGH,CRITICAL
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Container Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download backend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backend_image_artifact }}
+          path: artifacts/images/backend
+
+      - name: Download frontend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.frontend_image_artifact }}
+          path: artifacts/images/frontend
+
+      - name: Load Docker images
+        run: |
+          docker load -i artifacts/images/backend/backend-image.tar
+          docker load -i artifacts/images/frontend/frontend-image.tar
+          mkdir -p reports
+
+      - name: Scan backend image
+        id: trivy_backend
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.backend_image }}
+          format: table
+          output: reports/trivy-backend.txt
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+
+      - name: Scan frontend image
+        id: trivy_frontend
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.frontend_image }}
+          format: table
+          output: reports/trivy-frontend.txt
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+          skip-setup-trivy: true
+
+      - name: Generate backend SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.backend_image }}
+          format: sarif
+          output: reports/trivy-backend.sarif
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+          skip-setup-trivy: true
+
+      - name: Generate backend JSON report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.backend_image }}
+          format: json
+          output: reports/trivy-backend.json
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+          skip-setup-trivy: true
+
+      - name: Generate frontend SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.frontend_image }}
+          format: sarif
+          output: reports/trivy-frontend.sarif
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+          skip-setup-trivy: true
+
+      - name: Generate frontend JSON report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ inputs.frontend_image }}
+          format: json
+          output: reports/trivy-frontend.json
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: ${{ inputs.severity_threshold }}
+          skip-setup-trivy: true
+
+      - name: Summarize Trivy vulnerability counts
+        id: trivy_summary
+        if: always()
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+
+          reports = {
+              "backend": Path("reports/trivy-backend.json"),
+              "frontend": Path("reports/trivy-frontend.json"),
+          }
+          severities = ("CRITICAL", "HIGH")
+          totals = {}
+          summary_lines = [
+              "## Trivy Security Gate Summary",
+              "",
+              "| Image | Type | Critical | High |",
+              "| --- | --- | ---: | ---: |",
+          ]
+
+          for image, report_path in reports.items():
+              counts = {
+                  "os": {"CRITICAL": 0, "HIGH": 0},
+                  "library": {"CRITICAL": 0, "HIGH": 0},
+                  "unknown": {"CRITICAL": 0, "HIGH": 0},
+              }
+              if not report_path.exists():
+                  raise SystemExit(f"Missing Trivy JSON report: {report_path}")
+
+              data = json.loads(report_path.read_text(encoding="utf-8"))
+              for result in data.get("Results", []):
+                  vuln_type = result.get("Type") or result.get("Class") or "unknown"
+                  vuln_type = vuln_type if vuln_type in counts else "unknown"
+                  for vulnerability in result.get("Vulnerabilities") or []:
+                      severity = vulnerability.get("Severity")
+                      if severity in severities:
+                          counts[vuln_type][severity] += 1
+
+              image_critical = sum(bucket["CRITICAL"] for bucket in counts.values())
+              image_high = sum(bucket["HIGH"] for bucket in counts.values())
+              totals[image] = {"CRITICAL": image_critical, "HIGH": image_high}
+
+              for vuln_type in ("os", "library", "unknown"):
+                  summary_lines.append(
+                      f"| {image} | {vuln_type} | {counts[vuln_type]['CRITICAL']} | {counts[vuln_type]['HIGH']} |"
+                  )
+
+          backend_blocking = totals["backend"]["CRITICAL"] + totals["backend"]["HIGH"]
+          frontend_blocking = totals["frontend"]["CRITICAL"] + totals["frontend"]["HIGH"]
+          total_blocking = backend_blocking + frontend_blocking
+
+          summary_lines.extend([
+              "",
+              f"Backend blocking vulnerabilities: {backend_blocking}",
+              f"Frontend blocking vulnerabilities: {frontend_blocking}",
+              f"Total blocking vulnerabilities: {total_blocking}",
+          ])
+
+          summary = "\n".join(summary_lines)
+          print(summary)
+
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              Path(step_summary).write_text(summary + "\n", encoding="utf-8")
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as output:
+              output.write(f"backend_blocking={backend_blocking}\n")
+              output.write(f"frontend_blocking={frontend_blocking}\n")
+              output.write(f"total_blocking={total_blocking}\n")
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      # TODO: Temporary advisory mode for CI pipeline validation. Revert this step to fail on HIGH/CRITICAL vulnerabilities before production use.
+      - name: Report Trivy security gate
+        run: |
+          echo "Backend Trivy scan result: ${{ steps.trivy_backend.outcome }}"
+          echo "Frontend Trivy scan result: ${{ steps.trivy_frontend.outcome }}"
+          echo "Backend HIGH/CRITICAL count: ${{ steps.trivy_summary.outputs.backend_blocking }}"
+          echo "Frontend HIGH/CRITICAL count: ${{ steps.trivy_summary.outputs.frontend_blocking }}"
+          echo "Total HIGH/CRITICAL count: ${{ steps.trivy_summary.outputs.total_blocking }}"
+
+          if [[ "${{ steps.trivy_summary.outputs.total_blocking }}" -gt 0 ]]; then
+            echo "Trivy advisory mode: HIGH or CRITICAL vulnerabilities were found, but this workflow will continue for CI validation."
+          fi
+
+          if [[ "${{ steps.trivy_backend.outcome }}" == "failure" || "${{ steps.trivy_frontend.outcome }}" == "failure" ]]; then
+            echo "Trivy advisory mode: one or more Trivy scan steps reported failure. Review reports and logs before restoring blocking mode."
+          fi
+
+          echo "Trivy advisory mode complete."

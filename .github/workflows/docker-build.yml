@@ -1,0 +1,111 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Immutable image tag.
+        required: true
+        type: string
+      vite_api_url:
+        description: Frontend API URL injected at build time.
+        required: false
+        type: string
+        default: /api
+      backend_image_name:
+        description: Local backend image name.
+        required: false
+        type: string
+        default: hirevoice-backend
+      frontend_image_name:
+        description: Local frontend image name.
+        required: false
+        type: string
+        default: hirevoice-frontend
+    outputs:
+      backend_image:
+        description: Backend local image reference.
+        value: ${{ jobs.docker-build.outputs.backend_image }}
+      frontend_image:
+        description: Frontend local image reference.
+        value: ${{ jobs.docker-build.outputs.frontend_image }}
+      backend_image_artifact:
+        description: Backend Docker image artifact name.
+        value: ${{ jobs.docker-build.outputs.backend_image_artifact }}
+      frontend_image_artifact:
+        description: Frontend Docker image artifact name.
+        value: ${{ jobs.docker-build.outputs.frontend_image_artifact }}
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    name: Build Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+      frontend_image: ${{ steps.meta.outputs.frontend_image }}
+      backend_image_artifact: ${{ steps.meta.outputs.backend_image_artifact }}
+      frontend_image_artifact: ${{ steps.meta.outputs.frontend_image_artifact }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          echo "backend_image=${{ inputs.backend_image_name }}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${{ inputs.frontend_image_name }}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          echo "backend_image_artifact=hirevoice-backend-image-${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image_artifact=hirevoice-frontend-image-${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.backend_image }}
+          cache-from: type=gha,scope=hirevoice-backend
+          cache-to: type=gha,mode=max,scope=hirevoice-backend
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          load: true
+          push: false
+          build-args: |
+            VITE_API_URL=${{ inputs.vite_api_url }}
+          tags: ${{ steps.meta.outputs.frontend_image }}
+          cache-from: type=gha,scope=hirevoice-frontend
+          cache-to: type=gha,mode=max,scope=hirevoice-frontend
+
+      - name: Export Docker images
+        run: |
+          mkdir -p artifacts/images/backend artifacts/images/frontend
+          docker save "${{ steps.meta.outputs.backend_image }}" -o artifacts/images/backend/backend-image.tar
+          docker save "${{ steps.meta.outputs.frontend_image }}" -o artifacts/images/frontend/frontend-image.tar
+
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.backend_image_artifact }}
+          path: artifacts/images/backend/backend-image.tar
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload frontend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.frontend_image_artifact }}
+          path: artifacts/images/frontend/frontend-image.tar
+          if-no-files-found: error
+          retention-days: 3

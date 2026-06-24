@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Released image tag.
+        required: true
+        type: string
+      backend_image_uri:
+        description: Backend image URI.
+        required: false
+        type: string
+        default: ''
+      frontend_image_uri:
+        description: Frontend image URI.
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Released image tag.
+        required: true
+        type: string
+      backend_image_uri:
+        description: Backend image URI.
+        required: false
+        type: string
+        default: ''
+      frontend_image_uri:
+        description: Frontend image URI.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish Release Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Generate release metadata
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          BACKEND_IMAGE_URI: ${{ inputs.backend_image_uri }}
+          FRONTEND_IMAGE_URI: ${{ inputs.frontend_image_uri }}
+        run: |
+          mkdir -p artifacts/release
+          cat > artifacts/release/release-summary.md <<EOF
+          # HireVoice Release
+
+          Repository: ${{ github.repository }}
+          Ref: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Image tag: $IMAGE_TAG
+          Backend image: $BACKEND_IMAGE_URI
+          Frontend image: $FRONTEND_IMAGE_URI
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+          cat > artifacts/release/release-metadata.json <<EOF
+          {
+            "application": "HireVoice",
+            "repository": "${{ github.repository }}",
+            "ref": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "image_tag": "$IMAGE_TAG",
+            "backend_image_uri": "$BACKEND_IMAGE_URI",
+            "frontend_image_uri": "$FRONTEND_IMAGE_URI",
+            "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Publish release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hirevoice-release-${{ inputs.image_tag }}
+          path: artifacts/release/**
+          if-no-files-found: error
+          retention-days: 30

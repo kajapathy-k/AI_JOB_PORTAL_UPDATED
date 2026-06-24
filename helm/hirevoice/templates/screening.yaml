@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hirevoice-screening
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: screening
+spec:
+  replicas: {{ .Values.services.screening.replicas }}
+  selector:
+    matchLabels:
+      {{- include "hirevoice.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: screening
+  template:
+    metadata:
+      labels:
+        {{- include "hirevoice.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: screening
+    spec:
+      {{- include "hirevoice.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: screening
+          image: {{ include "hirevoice.backendImage" . }}
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+          command: ["python"]
+          args: ["-m", "uvicorn", "services.screening.main:app", "--host", "0.0.0.0", "--port", "{{ .Values.services.screening.port }}"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.screening.port }}
+          {{- include "hirevoice.backendConfigEnv" . | nindent 10 }}
+          env:
+            {{- include "hirevoice.groqEnv" . | nindent 12 }}
+          {{- include "hirevoice.httpProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.services.screening.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hirevoice-screening
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "hirevoice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: screening
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "hirevoice.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: screening
+  ports:
+    - name: http
+      port: {{ .Values.services.screening.port }}
+      targetPort: http
