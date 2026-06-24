@@ -38,7 +38,7 @@ jobs:
       DEPLOY_BRANCH: personal-account-gitops
       EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'hirevoice-dev-eks' }}
       IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
-      SMOKE_TEST_URL: https://hirevoice.in-sur.site
+      SMOKE_TEST_URL: ${{ vars.HIREVOICE_SMOKE_TEST_URL || '' }}
       WORKLOAD_NAMESPACE: hirevoice
     steps:
       - name: Checkout GitOps branch
