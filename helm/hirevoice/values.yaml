@@ -136,7 +136,7 @@ ingress:
   listenPorts:
     - HTTP: 80
     - HTTPS: 443
-  certificateArn: arn:aws:acm:us-east-1:334401495505:certificate/23c1c108-8e25-4b7b-b7de-fea8c3279eab
+  certificateArn: arn:aws:acm:us-east-1:334401495505:certificate/bbb3159c-075e-478c-836f-70a9881a89a1
   sslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
   sslRedirect: "443"
   healthcheckPath: /
