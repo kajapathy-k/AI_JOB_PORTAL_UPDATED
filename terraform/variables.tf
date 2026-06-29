@@ -265,6 +265,59 @@ variable "hirevoice_alb_name" {
   default     = "k8s-hirevoic-hirevoic-36e944838f"
 }
 
+variable "s3_bucket_name" {
+  description = "Optional explicit S3 bucket name for application documents."
+  type        = string
+  default     = null
+}
+
+variable "s3_force_destroy" {
+  description = "Allow Terraform to destroy the documents bucket even when it contains objects."
+  type        = bool
+  default     = false
+}
+
+variable "dynamodb_table_name" {
+  description = "Optional explicit DynamoDB table name for application state."
+  type        = string
+  default     = null
+}
+
+variable "dynamodb_ttl_attribute" {
+  description = "TTL attribute used by the DynamoDB table."
+  type        = string
+  default     = "expires_at"
+}
+
+variable "cloudfront_price_class" {
+  description = "CloudFront price class for the HireVoice CDN."
+  type        = string
+  default     = "PriceClass_100"
+
+  validation {
+    condition     = contains(["PriceClass_All", "PriceClass_200", "PriceClass_100"], var.cloudfront_price_class)
+    error_message = "cloudfront_price_class must be one of PriceClass_All, PriceClass_200, or PriceClass_100."
+  }
+}
+
+variable "use_cloudfront_distribution" {
+  description = "Whether Route53 should target the CloudFront distribution instead of the ALB directly."
+  type        = bool
+  default     = true
+}
+
+variable "cloudtrail_log_retention_days" {
+  description = "Retention period for CloudTrail logs sent to CloudWatch Logs."
+  type        = number
+  default     = 90
+}
+
+variable "waf_rate_limit" {
+  description = "Rate limit per IP for the WAF web ACL over a 5-minute period."
+  type        = number
+  default     = 1000
+}
+
 variable "tags" {
   description = "Additional tags applied to all supported resources."
   type        = map(string)

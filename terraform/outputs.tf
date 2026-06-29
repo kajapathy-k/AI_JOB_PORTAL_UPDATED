@@ -162,3 +162,68 @@ output "hirevoice_route53_alias_fqdn" {
   description = "Route53 alias record FQDN for HireVoice."
   value       = aws_route53_record.hirevoice_alias.fqdn
 }
+
+output "documents_bucket_name" {
+  description = "S3 bucket for application documents and artifacts."
+  value       = module.documents_bucket.bucket_name
+}
+
+output "documents_bucket_arn" {
+  description = "S3 bucket ARN for application documents."
+  value       = module.documents_bucket.bucket_arn
+}
+
+output "dynamodb_table_name" {
+  description = "DynamoDB table used for interview/application state."
+  value       = module.application_state_table.table_name
+}
+
+output "dynamodb_table_arn" {
+  description = "DynamoDB table ARN."
+  value       = module.application_state_table.table_arn
+}
+
+output "efs_file_system_id" {
+  description = "Shared EFS filesystem ID."
+  value       = module.shared_filesystem.file_system_id
+}
+
+output "efs_access_point_id" {
+  description = "Shared EFS access point ID."
+  value       = module.shared_filesystem.access_point_id
+}
+
+output "cloudtrail_arn" {
+  description = "CloudTrail ARN."
+  value       = module.audit_trail.trail_arn
+}
+
+output "cloudtrail_bucket_name" {
+  description = "CloudTrail log bucket name."
+  value       = module.audit_trail.bucket_name
+}
+
+output "cloudtrail_log_group_name" {
+  description = "CloudTrail CloudWatch Logs group name."
+  value       = module.audit_trail.log_group_name
+}
+
+output "waf_web_acl_arn" {
+  description = "Regional WAF web ACL ARN protecting the ALB."
+  value       = module.edge_waf.web_acl_arn
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID."
+  value       = module.edge_cdn.distribution_id
+}
+
+output "cloudfront_distribution_domain_name" {
+  description = "CloudFront distribution domain name."
+  value       = module.edge_cdn.distribution_domain_name
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "Operations dashboard name."
+  value       = module.operations_dashboard.dashboard_name
+}

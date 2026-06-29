@@ -28,3 +28,8 @@ groq_api_key = "replace-me"
 frontend_docker_image = "kajapathy/ai-job-portal-frontend:v2"
 backend_docker_image  = "kajapathy/ai-job-portal-backend:v2"
 run_seed_data         = false
+
+use_cloudfront_distribution  = true
+cloudfront_price_class       = "PriceClass_100"
+cloudtrail_log_retention_days = 90
+waf_rate_limit               = 1000
